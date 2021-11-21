@@ -1,0 +1,52 @@
+version: "3.3"
+
+services:
+  spk-cdn-node: # name of the service
+    build: .
+    image: spk-cdn-node # the image to use
+    container_name: spk-cdn-node # what to label the container for docker ps
+    ports:
+      - 4567:4567 # note, we're mapping to port 80 instead of 5000 because we'll use 80 on the VPS
+    restart: always # restart if failed, until we stop it ourselves
+    links:
+      - mongo
+    #external_links:
+      #- mongo
+    depends_on:
+      - mongo
+      - ipfs
+    networks:
+      - spk-cdn-node-network
+    environment:
+      MONGO_HOST: mongo:27017
+      IPFS_HOST: ipfs:5001
+  mongo:
+    container_name: mongo2
+    image: mongo:latest
+    ports:
+      - 27027:27017
+    networks:
+      - spk-cdn-node-network
+  ipfs:
+    container_name: ipfs2
+    image: ipfs/go-ipfs:latest
+    command:
+      - daemon
+      - --enable-pubsub-experiment
+    networks:
+      - spk-cdn-node-network
+  nginx: 
+    container_name: nginx
+    image: nginx:1.15-alpine
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    ports:
+      - "8880:80"
+      - "4443:443"
+    volumes:
+      - ./data/nginx:/etc/nginx/conf.d
+  certbot:
+    image: certbot/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+networks:
+  spk-cdn-node-network:
+    driver: bridge
