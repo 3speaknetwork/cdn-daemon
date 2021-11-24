@@ -19,3 +19,15 @@ Note: Some of the above goals might not end up in the final version. Instead, th
 ### Considerations
 
 Multi-threads. Since this project is primarily going to be written in NodeJS, we need to keep in consideration NodeJS is single threaded. A single nodejs process can provide plenty of throughput for a small application and is fairly efficiency in transfering large amounts of data without a lot of processing inbetween. Afterall entire website backends have been made in nodejs, and more are popping up. Most of the heavy lifting will be put on Mongodb & go-ipfs. We can also optimize by using in memory caching of mongodb queries. However, at scale with potentially thousands to 10s of thousand requests coming through, a single thread will not suffice. There are two ways we can go about solving this. One being running multiple servers load balancing between each server. This is a fine option assuming each server is very small in size and the operator has a lot of them. In most cases this will not be practical for a single operator. For the network, multiple servers will be crucial in reducing the load on any given server. The 2nd more practical option would be starting multiple nodejs processes. An nginx reverse proxy will load balance between each process.
+
+
+
+### Install flow
+
+1) Download install.sh
+2) ./install.sh - installs git, and docker/docker-compose, then clones github repo + initializes cryptographic identity
+3) docker-compose build - installs nginx, ipfs, mongodb, nodejs, letsencrypt then installs nodejs deps + compile build
+4) ./init-letsencrypt.sh - initializes let's encrypt certificate
+5) Installs systemd service
+6) docker-compose up
+7) Fires up systemd service
