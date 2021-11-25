@@ -2,18 +2,46 @@ import { Controller, Get, InternalServerErrorException, Param, Header, Response,
 import Jimp from 'jimp/es';
 import fs, {createReadStream } from 'fs'
 
-import { coreContainer } from '../api.module'
+//import {fileTypeFromBuffer} from 'file-type';
+import filetype from 'magic-bytes.js'
+
 import toBuffer from 'it-to-buffer'
 
 import Sharp from 'sharp'
 
+import { coreContainer } from '../api.module'
+
 @Controller('/')
 export class CdnMiddlewareController {
 
+    /**
+     * Deprecated: for reference only and should not be used for anything except images and small files.
+     * Use go-ipfs directly with/without nginx reverse proxy
+     * @param ipfsCid
+     * @param res 
+     * @param queryParams 
+     * @returns 
+     */
     @Get('ipfs/:ipfsCid')
-    async ipfsPath() {
+    async ipfsPath(@Param('ipfsCid') ipfsCid: string, @Response({passthrough: true}) res, @Query() queryParams) {
+        const data = await toBuffer(coreContainer.self.ipfs.cat(ipfsCid))
+        const dat = filetype(data)
+        
+        res.set({
+            'Content-Type': dat.mime,
+            'Content-Length': data.length,
+            'Content-Disposition': '',
+        });
+        //await resize.writeAsync('./test.png')
+        //const disContent = createReadStream('test.png')
+        const streamFile = new StreamableFile(Buffer.from(data));
+        (streamFile as any).getHeaders = (key) => {}
+        //const file = createReadStream('./test2.jpg');
+        //file.pipe(res);
+        return streamFile
+        //return streamFile;
+    }   
 
-    }
 
     @Get(`/thumb/:post_id/`) 
     async thumbnailProxy(@Param('post_id') post_id: string, @Response({passthrough: true}) res, @Query() queryParams){
@@ -25,7 +53,7 @@ export class CdnMiddlewareController {
         //coreContainer.self.ipfs.cat(post_id).pipe(res)
         if(queryParams?.res) {
             await coreContainer.self.imageResized.findOne({
-                
+
             })
             const data = await toBuffer(coreContainer.self.ipfs.cat(post_id))
 
