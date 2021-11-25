@@ -1,5 +1,5 @@
 apt update
-apt install git docker docker-compose
+apt install -y git docker docker-compose
 
 git clone https://github.com/3speaknetwork/cdn-daemon
 
