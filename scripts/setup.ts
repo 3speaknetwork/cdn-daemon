@@ -11,8 +11,13 @@ import Axios from 'axios'
 import fs from 'fs'
 
 void (async () => {
+    if(fs.existsSync('./data/creds-live')) {
+        console.error('Credientials already exist! Assuming setup was successful')
+        return
+    }
     console.log('starting gme setup')
-    const key = new Ed25519Provider(Crypto.randomBytes(32))
+    const seedBuf = Crypto.randomBytes(32);
+    const key = new Ed25519Provider(seedBuf)
     const did = new DID({ provider: key, resolver: KeyResolver.getResolver() })
     
     await did.authenticate(); 
@@ -61,10 +66,17 @@ void (async () => {
         for(let x = 0; x < 6; x++) {
             nginxConf = nginxConf.replace('FILL_DOMAIN', data.name)
         }
+        fs.mkdirSync('./data/creds-live')
+        fs.writeFileSync('./data/creds-live/keys', `seed=${seedBuf.toString('hex')}`)
+        fs.writeFileSync('./data/creds-live/hostname', `${data.name}`)
+
         //console.log(nginxConf)
-        //fs.writeFileSync('./data/nginx/app.conf', nginxConf)
-        let letsEncryptInit = fs.readFileSync('./init-letsencrypt.sh').toString()
-        letsEncryptInit = letsEncryptInit.replace('FILL_DOMAIN', data.name)
+        if(!fs.existsSync('./data/nginx-live')) {
+            fs.mkdirSync('./data/nginx-live')
+        }
+        fs.writeFileSync('./data/nginx-live/app.conf', nginxConf)
+        //let letsEncryptInit = fs.readFileSync('./init-letsencrypt.sh').toString()
+        //letsEncryptInit = letsEncryptInit.replace('FILL_DOMAIN', data.name)
         //fs.writeFileSync('./init-letsencrypt.sh', letsEncryptInit)
     } catch (ex) {
         console.log(ex.message)

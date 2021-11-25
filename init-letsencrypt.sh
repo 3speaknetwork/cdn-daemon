@@ -5,7 +5,14 @@ if ! [ -x "$(command -v docker-compose)" ]; then
   exit 1
 fi
 
-domains=(FILL_DOMAIN)
+hostname=`cat './data/creds-live/hostname'`
+domains=($hostname)
+echo $hostname;
+if [ -z $hostname ]; then
+  echo 'Error: hostname not found in ./data/creds-live. Please run setup.ts script'
+  exit;
+fi 
+
 rsa_key_size=4096
 data_path="./data/certbot"
 email="" # Adding a valid address is strongly recommended

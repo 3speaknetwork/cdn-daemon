@@ -43,9 +43,13 @@ services:
       - "8880:80"
       - "4443:443"
     volumes:
-      - ./data/nginx:/etc/nginx/conf.d
+      - ./data/nginx-live:/etc/nginx/conf.d
       - ./data/certbot/conf:/etc/letsencrypt
       - ./data/certbot/www:/var/www/certbot
+    networks:
+      - spk-cdn-node-network
+    depends_on:
+      - spk-cdn-node
   certbot:
     image: certbot/certbot
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
