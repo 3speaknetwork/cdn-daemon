@@ -20,6 +20,9 @@ services:
     environment:
       MONGO_HOST: mongo:27017
       IPFS_HOST: ipfs:5001
+    volumes:
+      - ./data/creds-live:/home/github/spk-indexer-node/data/creds-live
+      - ./data/nginx-live:/home/github/spk-indexer-node/data/nginx-live
   mongo:
     container_name: mongo2
     image: mongo:latest
@@ -49,6 +52,7 @@ services:
     networks:
       - spk-cdn-node-network
     depends_on:
+      - ipfs
       - spk-cdn-node
   certbot:
     image: certbot/certbot
