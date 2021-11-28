@@ -15,7 +15,4 @@ RUN npm install --legacy-peer-deps
 # Bundle app source
 COPY . .
 
-
-RUN npx ts-node ./scripts/setup.ts
-
 CMD [ "npm", "run", "dev" ]
