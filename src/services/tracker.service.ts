@@ -54,6 +54,13 @@ export class TrackerService {
                     last_pinged: new Date(),
                     last_updated: new Date()
                 })
+                await this.trackedFiles.findOneAndUpdate({
+                    ipfsHash: CidInfo.toString()
+                }, {
+                    $set: {
+                        last_pinged: new Date()
+                    }
+                })
             }
             try {
                 //const info = await this.self.ipfs.dht.findPeer(dhtProv.id)
