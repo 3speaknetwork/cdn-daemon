@@ -5,16 +5,19 @@ import { Collection } from "mongodb";
 import { DhtRecord, TrackedFile } from "./db.model";
 import { logger } from "../common/logger.singleton";
 import PQueue from "p-queue/dist";
+import moment from "moment";
 
 export class TrackerService {
     self: CoreService;
     dhtRecords: Collection<DhtRecord>
     trackedFiles: Collection<TrackedFile>
+    refreshActive: boolean;
     
     constructor(self) {
         this.self = self;
 
         this.refreshPins = this.refreshPins.bind(this)
+        this.refreshActive = false
     }
 
     
@@ -33,6 +36,13 @@ export class TrackerService {
                     $set: {
                         last_pinged: new Date(),
                         last_updated: new Date()
+                    }
+                })
+                await this.trackedFiles.findOneAndUpdate({
+                    ipfsHash: CidInfo.toString()
+                }, {
+                    $set: {
+                        last_pinged: new Date()
                     }
                 })
             } else {
@@ -74,17 +84,34 @@ export class TrackerService {
         }
     }
     async refreshPins() {
+        if(this.refreshActive) {
+            return;
+        }
+        this.refreshActive = true
         logger.info('Refreshing pins')
         const queue = new PQueue({concurrency: 1024})
-        for await(let item of this.trackedFiles.find({
+        try {
+            for await(let item of this.trackedFiles.find({
+                last_pinged: {
+                    $lt: new Date(moment().subtract(12, 'hour').date())
+                }
+            }, {
+                limit: 10000
+            })) {
+                queue.add(async() => {
+                    try {
+                        await this.singleQuery(item.ipfsHash)
+                    } catch (ex) {
+                        console.log(ex)
+                    }
+                })
+            }
+            await queue.onIdle()
+        } catch {
 
-        }, {skip: 25 * 1000})) {
-            queue.add(async() => {
-                await this.singleQuery(item.ipfsHash)
-            })
         }
-        await queue.onIdle()
         logger.info('Refreshing pins complete')
+        this.refreshActive = false;
     }
     async addPin(pinCid) {
         const record = await this.trackedFiles.findOne({
@@ -94,7 +121,7 @@ export class TrackerService {
             logger.info(`Adding new pin: ${pinCid}`)
             await this.trackedFiles.insertOne({
                 ipfsHash: pinCid.toString(),
-                last_pinged: new Date(),
+                last_pinged: new Date(0),
                 last_updated: new Date(),
                 first_seen: new Date(),
                 expiration: null
@@ -104,7 +131,8 @@ export class TrackerService {
     async start() {
         this.dhtRecords = this.self.dhtRecords;
         this.trackedFiles = this.self.trackedFiles;
-        //NodeSchedule.scheduleJob('* * * * *', this.refreshPins)
+        NodeSchedule.scheduleJob('* * * * *', this.refreshPins)
+        
         //this.refreshPins()
         //this.singleQuery('bagiacgzah24drzou2jlkixpblbgbg6nxfrasoklzttzoht5hixhxz3rlncyq')
         //this.queryConnect('bagiacgzah24drzou2jlkixpblbgbg6nxfrasoklzttzoht5hixhxz3rlncyq')

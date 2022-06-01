@@ -6,7 +6,7 @@ export class AdminController {
 
     @Get('addFile/:id')
     async ipfsPath(@Param('id') streamId: string) {
-        console.log(streamId)
+        await coreContainer.self.trackerService.addPin(streamId)
     }
 
     @Get(`/trackedfiles`) 
