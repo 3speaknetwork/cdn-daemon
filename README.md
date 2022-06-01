@@ -18,6 +18,7 @@ bash <(curl -s https://raw.githubusercontent.com/3speaknetwork/cdn-daemon/main/s
 * Block illegal or banned files from being served through the CDN endpoint. Ensure files against blocklist are never served or stored. Currently there is no way to prevent IPFS from serving disallowed files.
 * Cache DHT queries of tracked files. Maintain a list of "partners" - the peers storing the content most relevant to the daemon. If daemon can tell IPFS to fetch from this list of nodes.
 * Provide a DHT query endpoint for remote nodes to query the DHT cache.
+* Display profile/cover photos of a user via a simple API
 
 Note: Some of the above goals might not end up in the final version. Instead, they will be implemented in another part of the project.
 
