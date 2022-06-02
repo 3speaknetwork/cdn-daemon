@@ -28,7 +28,7 @@ export class TrackerService {
             const convert = CID.create(1, 0x00, CidInfo.multihash)
             const record = await this.dhtRecords.findOne({
                 peer_id: dhtProv.id,
-                ipfsHash: CidInfo.toString()
+                ipfsHash
             })
             if(record) {
                 logger.info(`Discovered existing DHT record: ${dhtProv.id} provides ${CidInfo.toString()}`)
@@ -39,7 +39,7 @@ export class TrackerService {
                     }
                 })
                 await this.trackedFiles.findOneAndUpdate({
-                    ipfsHash: CidInfo.toString()
+                    ipfsHash,
                 }, {
                     $set: {
                         last_pinged: new Date()
@@ -48,14 +48,14 @@ export class TrackerService {
             } else {
                 logger.info(`Discovered new DHT record: ${dhtProv.id} provides ${CidInfo.toString()}`)
                 await this.dhtRecords.insertOne({
-                    ipfsHash: CidInfo.toString(),
+                    ipfsHash,
                     peer_id: dhtProv.id,
                     first_seen: new Date(),
                     last_pinged: new Date(),
                     last_updated: new Date()
                 })
                 await this.trackedFiles.findOneAndUpdate({
-                    ipfsHash: CidInfo.toString()
+                    ipfsHash,
                 }, {
                     $set: {
                         last_pinged: new Date()
