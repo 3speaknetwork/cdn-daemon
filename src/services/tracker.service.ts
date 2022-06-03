@@ -126,13 +126,17 @@ export class TrackerService {
         })
         if(!record) {
             logger.info(`Adding new pin: ${pinCid}`)
-            await this.trackedFiles.insertOne({
-                ipfsHash: pinCid.toString(),
-                last_pinged: new Date(0),
-                last_updated: new Date(),
-                first_seen: new Date(),
-                expiration: null
-            })
+            try {
+                await this.trackedFiles.insertOne({
+                    ipfsHash: pinCid.toString(),
+                    last_pinged: new Date(0),
+                    last_updated: new Date(),
+                    first_seen: new Date(),
+                    expiration: null
+                })
+            } catch {
+
+            }
         }
     }
     async start() {
