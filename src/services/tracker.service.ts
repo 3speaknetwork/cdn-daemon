@@ -103,7 +103,7 @@ export class TrackerService {
                     $lt: new Date(moment().subtract(84, 'hour').date())
                 }
             }, {
-                limit: 50000
+                limit: 250 * 1000
             })) {
                 queue.add(async() => {
                     try {
