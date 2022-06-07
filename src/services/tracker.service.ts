@@ -94,9 +94,12 @@ export class TrackerService {
             for await(let item of this.trackedFiles.find({
                 last_pinged: {
                     $lt: new Date(moment().subtract(84, 'hour').date())
-                }
+                },
             }, {
-                limit: 250 * 1000
+                limit: 250 * 1000,
+                sort: {
+                    last_pinged: 1
+                }
             })) {
                 queue.add(async() => {
                     try {
@@ -105,8 +108,10 @@ export class TrackerService {
                         console.log(ex)
                     }
                 })
+                if(queue.size > 20000) {
+                    await queue.onIdle()
+                }
             }
-            await queue.onIdle()
         } catch {
 
         }
