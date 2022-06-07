@@ -24,8 +24,10 @@ export class TrackerService {
     async singleQuery(ipfsHash) {
         const CidInfo = CID.parse(ipfsHash)
         //console.log(CidInfo)
+        let provider_records = false;
         for await (let dhtProv of this.self.ipfs.dht.findProvs(CidInfo, {timeout: 15000})) {
             const convert = CID.create(1, 0x00, CidInfo.multihash)
+            provider_records = true;
             const record = await this.dhtRecords.findOne({
                 peer_id: dhtProv.id,
                 ipfsHash
@@ -60,7 +62,8 @@ export class TrackerService {
             ipfsHash,
         }, {
             $set: {
-                last_pinged: new Date()
+                last_pinged: new Date(),
+                provider_records
             }
         })
     }
