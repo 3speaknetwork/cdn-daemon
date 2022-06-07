@@ -38,13 +38,6 @@ export class TrackerService {
                         last_updated: new Date()
                     }
                 })
-                await this.trackedFiles.findOneAndUpdate({
-                    ipfsHash,
-                }, {
-                    $set: {
-                        last_pinged: new Date()
-                    }
-                })
             } else {
                 logger.info(`Discovered new DHT record: ${dhtProv.id} provides ${CidInfo.toString()}`)
                 await this.dhtRecords.insertOne({
@@ -53,13 +46,6 @@ export class TrackerService {
                     first_seen: new Date(),
                     last_pinged: new Date(),
                     last_updated: new Date()
-                })
-                await this.trackedFiles.findOneAndUpdate({
-                    ipfsHash,
-                }, {
-                    $set: {
-                        last_pinged: new Date()
-                    }
                 })
             }
             try {
@@ -70,6 +56,13 @@ export class TrackerService {
 
             }
         }
+        await this.trackedFiles.findOneAndUpdate({
+            ipfsHash,
+        }, {
+            $set: {
+                last_pinged: new Date()
+            }
+        })
     }
 
     async queryConnect(ipfsHash) {
