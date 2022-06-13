@@ -92,7 +92,7 @@ export class TrackerService {
         }
         this.refreshActive = true
         logger.info('Refreshing pins')
-        const queue = new PQueue({concurrency: 1024})
+        const queue = new PQueue({concurrency: 4096})
         try {
             for await(let item of this.trackedFiles.find({
                 last_pinged: {
