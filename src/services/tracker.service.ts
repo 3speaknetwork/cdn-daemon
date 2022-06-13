@@ -96,7 +96,7 @@ export class TrackerService {
         try {
             for await(let item of this.trackedFiles.find({
                 last_pinged: {
-                    $lt: new Date(moment().subtract(84, 'hour').date())
+                    $lt: new Date(moment().subtract(336, 'hour').date())
                 },
             }, {
                 limit: 250 * 1000,
