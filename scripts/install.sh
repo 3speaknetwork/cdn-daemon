@@ -6,7 +6,7 @@ sleep 2;
 apt update
 apt install -y git docker docker-compose
 
-git clone https://github.com/3speaknetwork/cdn-daemon
+git clone https://github.com/spknetwork/cdn-daemon
 
 cd cdn-daemon
 
