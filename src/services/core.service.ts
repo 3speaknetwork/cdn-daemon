@@ -6,15 +6,17 @@ import { IPFSHTTPClient } from 'ipfs-http-client'
 import { ConfigService } from '../config.service'
 import { TrackedFile, DhtRecord, PeerInfo } from './db.model'
 import { BloomFilter } from 'bloom-filters'
-import { CID } from 'multiformats/cid'
-
+//@ts-ignore
 
 import { logger } from '../common/logger.singleton'
 
 import {TrackerService} from './tracker.service'
 import {BindingService} from './bindings.service'
+// let CID=_CID.CID
+// let CID=Block.CID
+async function parseCid(ipfsPath) {
+    const { CID } =await import("multiformats")
 
-function parseCid(ipfsPath) {
     if (!ipfsPath) {
         return null
     }
