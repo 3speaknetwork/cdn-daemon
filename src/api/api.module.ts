@@ -21,9 +21,9 @@ export class ApiModule {
   public async listen(instance) {
     this.instance = instance
     coreContainer.self = instance
-    const app2 = await NestFactory.create<NestFastifyApplication>(
+    const app2 = await NestFactory.create(
       ControllerModule,
-      new FastifyAdapter(),
+      // new FastifyAdapter(),
     )
     await app2.listen(18081)
     const app = await NestFactory.create(ControllerModule)

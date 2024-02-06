@@ -4,11 +4,11 @@ import {
   InternalServerErrorException,
   Param,
   Header,
-  Response,
   StreamableFile,
   Res,
   Query,
 } from '@nestjs/common'
+import type { Response } from 'express'
 import Jimp from 'jimp'
 import fs from 'fs/promises'
 import pkg from 'mmmagic'
@@ -59,7 +59,7 @@ export class CdnMiddlewareController {
   @Get('ipfs/:ipfsCid')
   async ipfsPath(
     @Param('ipfsCid') ipfsCid: string,
-    @Response({ passthrough: true }) res,
+    @Res({ passthrough: true }) res,
     @Query() queryParams,
   ) {
     const data = await toBuffer(coreContainer.self.ipfs.cat(ipfsCid))
@@ -83,7 +83,7 @@ export class CdnMiddlewareController {
   @Get(`/thumb/:post_id/`)
   async thumbnailProxy(
     @Param('post_id') post_id: string,
-    @Response({ passthrough: true }) res,
+    @Res({ passthrough: true }) res,
     @Query() queryParams,
   ) {
     //?format=png&mode=fit&width=3000&height=3000
@@ -165,7 +165,7 @@ export class CdnMiddlewareController {
   @Get('/image/resizer/:ipfsId')
   async resizer(
     @Param('ipfsId') ipfsId: string,
-    @Response({ passthrough: true }) res,
+    @Res({ passthrough: true }) res: Response,
     @Query() queryParams,
   ) {
     if (!(queryParams?.width && queryParams?.height && queryParams?.format)) {
@@ -213,11 +213,17 @@ export class CdnMiddlewareController {
 
         console.log('uploaded !')
       })
-
+      // res.set()
       // await fs.rm(tempFileName)
     })
 
-    return imageData
+    console.log('res is ', res)
+    ;(res as any).set({
+      'Content-Type': 'image/png',
+      'Content-Disposition': '',
+    })
+
+    return new StreamableFile(imageData)
   }
 
   // container format change
@@ -228,7 +234,7 @@ export class CdnMiddlewareController {
   @Get('/video/resizer/:ipfsId')
   async video_resizer(
     @Param('ipfsId') ipfsId: string,
-    @Response({ passthrough: true }) res,
+    @Res({ passthrough: true }) res,
     @Query() queryParams,
   ) {
     if (!(queryParams?.width && queryParams?.height && queryParams?.format)) {
