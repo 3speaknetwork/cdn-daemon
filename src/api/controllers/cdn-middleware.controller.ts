@@ -19,10 +19,12 @@ import ffmpeg from 'fluent-ffmpeg'
 import toBuffer from 'it-to-buffer'
 import Sharp from 'sharp'
 import { coreContainer } from '../api.module'
+
 const magic = new Magic(MAGIC_MIME_TYPE)
 
 let ipfs_base_Uri = process.env.IPFS_HOST || 'http://localhost:18081'
-
+let supportedImageFormats = ['bmp', 'jpeg', 'gif', 'tiff', 'png']
+let supportedVideoFormats = ['mp4', 'webm', 'mkv']
 /**
  *  Minio S3
  */
@@ -31,6 +33,8 @@ import { Client } from 'minio'
 import sharp from 'sharp'
 import temp from 'temp'
 import path from 'path'
+import { isIPFSUrl } from './is_ipfs'
+import axios from 'axios'
 temp.track()
 var minioClient = new Client({
   endPoint: '127.0.0.1',
@@ -162,38 +166,76 @@ export class CdnMiddlewareController {
    * Give back CID of new resized image on ipfs
    */
 
-  @Get('/image/resizer/:ipfsId')
+  @Get('/image/resizer/:base64EncodedUrl')
   async resizer(
-    @Param('ipfsId') ipfsId: string,
+    @Param('base64EncodedUrl') base64EncodedUrl: string,
     @Res({ passthrough: true }) res: Response,
     @Query() queryParams,
   ) {
-    if (!(queryParams?.width && queryParams?.height && queryParams?.format)) {
+    if (
+      !(
+        queryParams?.width &&
+        queryParams?.height &&
+        queryParams?.format &&
+        queryParams?.cacheControlEnabled
+      )
+    ) {
       // if custom resolution is not provided
       return `Please send resolution as query params i.e 
-        ${ipfs_base_Uri}/image/resizer/QmWiAWBd3QKwHBYnMdJJsEfNcAfrVYyscBXfQKYJU3VdYW?width=400&height=200&format=png`
+        ${ipfs_base_Uri}/image/resizer/base64-encoded-url?width=400&height=200&format=png&cacheControlEnabled=false`
     }
+    if (!supportedImageFormats.includes(queryParams.format)) {
+      return 'Un-supported Format , supported formats are ' + supportedImageFormats.toString()
+    }
+
+    const decodedUrl: string = Buffer.from(base64EncodedUrl, 'base64').toString('utf-8')
+    console.log('Decoded:', decodedUrl)
 
     // Fetching custom resolution
     const width = queryParams.width
     const height = queryParams.height
     const custom_format = queryParams.format
+    const cacheControlEnabled = queryParams.cacheControlEnabled
+
+    // cache control if ipfs or not
+    // custom return type
+    // base64url
 
     console.log('Custom resolution : ' + width + 'x' + height)
     console.log('custom format is ', custom_format)
 
     // Fetching image contents from IPFS
+    let result: any = isIPFSUrl(decodedUrl)
+    let raw_data: any
+    let imageBuffer
+    if (result.isIPFS) {
+      console.log('ipfs content')
 
-    const ipfs_raw_data = coreContainer.self.ipfs.cat(ipfsId)
+      raw_data = coreContainer.self.ipfs.cat(result.cid)
+      imageBuffer = await toBuffer(raw_data)
+    } else {
+      console.log('non ipfs content')
+
+      raw_data = await axios.get(decodedUrl)
+      raw_data = raw_data.data
+
+      const response = await axios.get(decodedUrl, {
+        responseType: 'arraybuffer',
+      })
+      raw_data = response.data
+
+      // Convert the array buffer to a Buffer
+      imageBuffer = Buffer.from(raw_data, 'binary')
+    }
 
     // Converting ipfs raw data to an imae representation
 
-    const imageBuffer = await toBuffer(ipfs_raw_data)
     const image = await Jimp.read(Buffer.from(imageBuffer))
+
+    console.log('converted to image')
 
     // Resizing image
     const resize = await image.scaleToFit(Number(width), Number(height))
-    console.log('running resize')
 
     // change it to different containers
 
@@ -201,25 +243,36 @@ export class CdnMiddlewareController {
       custom_format ? 'image/' + custom_format : 'image/png',
     )
 
-    let tempFileName = ipfsId + '.' + custom_format
+    let tempFileName = base64EncodedUrl + '.' + custom_format
+    console.log('filename is ', tempFileName)
 
-    temp.mkdir('temp', async function (err, dirPath) {
-      var inputPath = path.join(dirPath, tempFileName)
+    // Cache Check
+    let shouldNotCache = !result.isIPFS && cacheControlEnabled == 'false'
+    console.log('should not cache ', shouldNotCache)
 
-      fs.writeFile(inputPath, imageData).then(async (res) => {
-        console.log('file write res ', res)
+    if (shouldNotCache) {
+      console.log('cache control disabled !')
+    } else {
+      // cache on S3 - Minio Bucket
 
-        await uploadFile(inputPath, tempFileName)
+      temp.mkdir('temp', async function (err, dirPath) {
+        var inputPath = path.join(dirPath, tempFileName)
 
-        console.log('uploaded !')
+        fs.writeFile(inputPath, imageData).then(async (res) => {
+          console.log('file write res ', res)
+
+          await uploadFile(inputPath, tempFileName)
+
+          console.log('uploaded !')
+        })
+        // res.set()
+        // await fs.rm(tempFileName)
       })
-      // res.set()
-      // await fs.rm(tempFileName)
-    })
+    }
 
-    console.log('res is ', res)
-    ;(res as any).set({
-      'Content-Type': 'image/png',
+    // console.log('res is ', res)
+    res.set({
+      'Content-Type': 'image/' + custom_format,
       'Content-Disposition': '',
     })
 
@@ -231,70 +284,102 @@ export class CdnMiddlewareController {
   // save to s3/minio
   // return actual video
 
-  @Get('/video/resizer/:ipfsId')
+  @Get('/video/resizer/:base64EncodedUrl')
   async video_resizer(
-    @Param('ipfsId') ipfsId: string,
+    @Param('base64EncodedUrl') base64EncodedUrl: string,
     @Res({ passthrough: true }) res,
     @Query() queryParams,
   ) {
-    if (!(queryParams?.width && queryParams?.height && queryParams?.format)) {
+    if (
+      !(
+        queryParams?.width &&
+        queryParams?.height &&
+        queryParams?.format &&
+        queryParams?.cacheControlEnabled
+      )
+    ) {
       // if custom resolution is not provided
       return `Please send resolution as query params i.e 
-        ${ipfs_base_Uri}/video/resizer/QmWiAWBd3QKwHBYnMdJJsEfNcAfrVYyscBXfQKYJU3VdYW?width=400&height=200&format=mp4`
+        ${ipfs_base_Uri}/video/resizer/QmWiAWBd3QKwHBYnMdJJsEfNcAfrVYyscBXfQKYJU3VdYW?width=400&height=200&format=mp4&cacheControlEnabled=false`
     }
 
     // Fetching custom resolution
     const width = queryParams.width
     const height = queryParams.height
     const custom_format = queryParams.format
-    const ipfs_raw_data = coreContainer.self.ipfs.cat(ipfsId)
-    let videoPath = ipfsId + custom_format
-    const videoBuffer = await toBuffer(ipfs_raw_data)
-    let outFile = 'output.webm'
-    // fs.writeFile(videoPath, videoBuffer)
+    const cacheControlEnabled = queryParams.cacheControlEnabled
 
-    // await transcodeVideo(videoPath, outFile, async () => {
-    //   const updatedVideoBuffer = await fs.readFile(outFile)
+    if (!supportedVideoFormats.includes(queryParams.format)) {
+      return 'Un-supported Format , supported formats are ' + supportedVideoFormats.toString()
+    }
 
-    //   const dataResult = await coreContainer.self.ipfs.add(updatedVideoBuffer)
-    //   console.log('new cid is ', dataResult.cid.toString())
-    //   await fs.rm(videoPath)
-    //   await fs.rm(outFile)
+    const decodedUrl: string = Buffer.from(base64EncodedUrl, 'base64').toString('utf-8')
+    console.log('Decoded:', decodedUrl)
 
-    //   console.log('intermediate files are deleted ')
-
-    //   return dataResult.cid.toString()
-    // })
-
-    let tempFileName = ipfsId + '.' + custom_format
-
-    temp.mkdir('temp', async function (err, dirPath) {
-      var inputPath = path.join(dirPath, tempFileName)
-
-      fs.writeFile(inputPath, videoBuffer).then(async (res) => {
-        temp.mkdir('temp2', async function (err, dirPath) {
-          var outputPath = path.join(dirPath, tempFileName)
-          await transcodeVideo(
-            inputPath,
-            outputPath,
-            async () => {
-              // const updatedVideoBuffer = await fs.readFile(inputPath)
-
-              // const dataResult = await coreContainer.self.ipfs.add(updatedVideoBuffer)
-
-              await uploadFile(outputPath, tempFileName)
-
-              return 'uploaded !'
-            },
-            { width, height },
-          )
-        })
+    let result: any = isIPFSUrl(decodedUrl)
+    let raw_data: any
+    let videoBuffer
+    if (result.isIPFS) {
+      raw_data = coreContainer.self.ipfs.cat(result.cid)
+      videoBuffer = await toBuffer(raw_data)
+    } else {
+      raw_data = await axios.get(decodedUrl)
+      raw_data = raw_data.data
+      const response = await axios.get(decodedUrl, {
+        responseType: 'arraybuffer',
       })
+      raw_data = response.data
 
-      // await fs.rm(tempFileName)
+      // Convert the array buffer to a Buffer
+      videoBuffer = Buffer.from(raw_data, 'binary')
+    }
 
-      // console.log('ipfs data is ', ipfs_raw_data)
+    // const raw_data = coreContainer.self.ipfs.cat(base64EncodedUrl)
+    // console.log("raw data got");
+
+    let tempFileName = base64EncodedUrl + '.' + custom_format
+
+    // caxhe control check
+    let shouldNotCache = !result.isIPFS && cacheControlEnabled == 'false'
+    console.log('should not cache ', shouldNotCache)
+
+    if (shouldNotCache) {
+      console.log('cache control disabled !')
+    } else {
+      // cache on S3 - Minio Bucket4
+      console.log('uploading')
+
+      temp.mkdir('temp', async function (err, dirPath) {
+        var inputPath = path.join(dirPath, tempFileName)
+
+        fs.writeFile(inputPath, videoBuffer).then(async (res) => {
+          temp.mkdir('temp2', async function (err, dirPath) {
+            var outputPath = path.join(dirPath, tempFileName)
+            await transcodeVideo(
+              inputPath,
+              outputPath,
+              async () => {
+                await uploadFile(outputPath, tempFileName)
+
+                return 'uploaded !'
+              },
+              { width, height },
+            )
+          })
+        })
+
+        // await fs.rm(tempFileName)
+
+        // console.log('ipfs data is ', raw_data)
+      })
+    }
+
+    res.set({
+      'Content-Type': 'video/' + custom_format,
+      'Content-Disposition': '',
     })
+
+    return new StreamableFile(videoBuffer)
   }
 }
 
