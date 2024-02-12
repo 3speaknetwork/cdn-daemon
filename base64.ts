@@ -4,7 +4,7 @@
 
 // ipfs
 
-const url = 'ipfs://QmWiAWBd3QKwHBYnMdJJsEfNcAfrVYyscBXfQKYJU3VdYW'
+// const url = 'ipfs://QmWiAWBd3QKwHBYnMdJJsEfNcAfrVYyscBXfQKYJU3VdYW'
 
 // non ipfs
 
@@ -16,6 +16,13 @@ const url = 'ipfs://QmWiAWBd3QKwHBYnMdJJsEfNcAfrVYyscBXfQKYJU3VdYW'
 // ipfs
 
 // const url = 'ipfs://QmcVh36RrKerCWNEQvLCyRWkXEwREwxbU6mPZKxobocfH6'
+// 480p_0
+
+// const url =
+//   'https://ipfs-3speak.b-cdn.net/ipfs/Qmf1XukAoMdatAW9HPDZL6Gphrgzvew5Km3rzvHf194DmM/480p/480p_0.ts'
+
+const url =
+  'https://ipfs-3speak.b-cdn.net/ipfs/Qmf1XukAoMdatAW9HPDZL6Gphrgzvew5Km3rzvHf194DmM/1080p/index.m3u8'
 
 // non ipfs
 

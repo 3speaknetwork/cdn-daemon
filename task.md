@@ -1,3 +1,14 @@
+# Pending tasks
+
+hls - detect hls url , header detection http head request ✅
+dynamic format in transcoding ✅
+convert uploading code to asynchronous✅
+instead of parts , use .m3u8 file✅
+written 2 tests in a separate script✅
+
+// 12 tests , for each resolution , 15 seconds , 3 minutes , 7 min , 15 separate script independent
+// we need speed estimation for each type and time
+
 # minio commands ;
 
 minio server C:\minio --console-address :9001
