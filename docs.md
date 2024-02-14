@@ -1,8 +1,8 @@
 # CDN Daemon Documentation
 
-Here the APIs we provide for easily manipulating the IPFS and Non-ipfs hosted content.
+Here are the APIs we provide for easily manipulating the IPFS and Non-ipfs hosted content.
 
-Here is the base baseURI for all the endpoints :
+The baseURI for all the endpoints :
 
 `baseURI="live_uri_of_cdn_daemon_backend"`
 
@@ -39,9 +39,9 @@ const response = await axios.get(
 
 This API allows you to :
 
--- Use ffmpeg to remux different video formats. Such as mkv -> mp4, etc
--- API returns the updated version of the video.
--- Transcoded video can cached in S3 Storage.
+-- Remux different video formats. Such as mkv -> mp4, etc
+-- Return the transformed version of the video.
+-- Transcoded video can be cached in S3 Storage.
 -- The transcoding does not change resolution or do any highly intensive video encode/decode options.
 
 #### URL Pattern:
@@ -76,7 +76,4 @@ const response = await axios.get(
 
 ### Note:
 
-- Ensure that you replace `$baseURI` with the actual base URI when interacting with the live version of the API.
-- Use the provided script to encode URLs to Base64 before making requests to the APIs.
-- For both IPFS and non-IPFS URLs, the `cacheControl` query parameter can be used to control caching behavior.
 - Supported types of encoding for image files are `['bmp', 'jpeg', 'gif', 'tiff', 'png']` and for video files , these are : `['mp4', 'webm', 'mkv']`
