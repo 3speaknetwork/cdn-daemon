@@ -1,17 +1,10 @@
-# Pending tasks
+# minio Installation Steps To run localy;
 
-hls - detect hls url , header detection http head request ✅
-dynamic format in transcoding ✅
-convert uploading code to asynchronous✅
-instead of parts , use .m3u8 file✅
-written 2 tests in a separate script✅
+- Install Minio
+- Run Min-io server locally
+  minio server C:\minio --console-address :9001
 
-// 12 tests , for each resolution , 15 seconds , 3 minutes , 7 min , 15 separate script independent
-// we need speed estimation for each type and time
-
-# minio commands ;
-
-minio server C:\minio --console-address :9001
+- setup server credientials on local machine where password and username are `minioadmin`
 
 mc.exe alias set local http://127.0.0.1:9000 minioadmin minioadmin
 
@@ -19,7 +12,7 @@ mc.exe alias set local http://127.0.0.1:9000 minioadmin minioadmin
 
 Image resizing
 -- Customizable resolution
--- Store cached images to S3 or Mongodb GridFs . Mongodb GridFs generally preferred, but S3 is good alternative.
+-- Store cached images to Minio S3
 -- Return as jpeg, png, and webp
 -- No cache options & cache control
 
@@ -27,7 +20,7 @@ Video transcoding
 -- Use ffmpeg to remux different video formats. Such as mkv -> mp4, etc
 -- Transcode status should be stored in database
 -- API should return transcode status and once complete start serving the transcoded video
--- Transcoded video should be cached in S3/Mongodb GridFs
+-- Transcoded video should be cached in S3
 -- The transcoding should not change resolution or do any highly intensive video encode/deocde options if possible.
 
 Documentation
@@ -35,6 +28,7 @@ Documentation
 
 Whitepaper: https://peakd.com/hive/@spknetwork/spk-network-light-paper
 https://min.io/
+
 minio:
 image: minio/minio:RELEASE.2019-08-14T20-37-41Z
 networks: - acela-core
