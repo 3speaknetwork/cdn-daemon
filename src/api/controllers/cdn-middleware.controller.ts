@@ -390,11 +390,11 @@ async function transcodeVideo(inputPath, outputPath, custom_format) {
   })
 }
 
-// async function makeBucket() {
-//   await minioClient.makeBucket(bucket_name, (res) => {
-//     console.log(res)
-//   })
-// }
+async function makeBucket() {
+  await minioClient.makeBucket(bucket_name, (res) => {
+    console.log(res)
+  })
+}
 
 /** Return mimetype of data. */
 
@@ -413,6 +413,12 @@ export function mimeMagic(data: Buffer) {
 const readFileAsync: any = util.promisify(fs.readFile)
 
 async function uploadFile(filepath: string, filename, customResolution = null) {
+  try {
+    await makeBucket()
+    console.log('Bucket created')
+  } catch (error) {
+    console.log('Bucket Already exists ', error)
+  }
   try {
     let complete_file_name = filepath
     console.log('file name is ', complete_file_name)

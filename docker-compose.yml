@@ -1,4 +1,4 @@
-version: "3.3"
+version: '3.3'
 
 services:
   spk-cdn-node: # name of the service
@@ -11,7 +11,7 @@ services:
     links:
       - mongo
     #external_links:
-      #- mongo
+    #- mongo
     depends_on:
       - mongo
       - ipfs
@@ -38,13 +38,28 @@ services:
       - --enable-pubsub-experiment
     networks:
       - spk-cdn-node-network
-  nginx: 
+    network_mode: host
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: minio
+    ports:
+      - '9000:9000' # API port
+      - '9001:9001' # Console port
+    volumes:
+      - ${HOME}/minio/data:/data # Adjust path if needed
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    network_mode: host
+
+  nginx:
     container_name: nginx
     image: nginx:1.15-alpine
-    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    command: '/bin/sh -c ''while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'''
     ports:
-      - "80:80"
-      - "443:443"
+      - '80:80'
+      - '443:443'
     volumes:
       - ./data/nginx-live:/etc/nginx/conf.d
       - ./data/certbot/conf:/etc/letsencrypt
@@ -60,6 +75,7 @@ services:
     volumes:
       - ./data/certbot/conf:/etc/letsencrypt
       - ./data/certbot/www:/var/www/certbot
+
 networks:
   spk-cdn-node-network:
     driver: bridge
