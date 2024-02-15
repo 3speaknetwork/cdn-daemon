@@ -36,8 +36,9 @@ services:
     command:
       - daemon
       - --enable-pubsub-experiment
-    networks:
-      - spk-cdn-node-network
+    # networks:
+    #   - spk-cdn-node-network
+
     network_mode: host
   minio:
     image: quay.io/minio/minio:latest
