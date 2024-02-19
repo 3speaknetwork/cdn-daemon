@@ -7,6 +7,8 @@ import {
   StreamableFile,
   Res,
   Query,
+  Req,
+  Ip,
 } from '@nestjs/common'
 import type { Response } from 'express'
 import Jimp from 'jimp'
@@ -39,6 +41,7 @@ import path from 'path'
 import { isIPFSUrl } from './is_ipfs'
 import axios from 'axios'
 import { isHLSFile } from './is_hls'
+import { statsLoggerMiddleware } from '../Middlewares/statsLoggerMiddleware'
 
 // temp.track()
 var minioClient = new Client({
@@ -176,7 +179,18 @@ export class CdnMiddlewareController {
     @Param('base64EncodedUrl') base64EncodedUrl: string,
     @Res({ passthrough: true }) res: Response,
     @Query() queryParams,
+    @Req() req: any,
   ) {
+    console.log('request is ', req)
+
+    let ip = req.headers.host
+    console.log('ip is ', ip)
+
+    let headers = await JSON.stringify(req.headers)
+    let startTime = new Date().getTime() / 1000
+    let fetchedDataSize = 0
+    let uploadDataSize = 0
+
     if (!queryParams?.format) {
       // if custom resolution is not provided
       return `Please send resolution as query params i.e 
@@ -211,7 +225,9 @@ export class CdnMiddlewareController {
       console.log('ipfs content')
 
       raw_data = coreContainer.self.ipfs.cat(result.cid)
+
       imageBuffer = await toBuffer(raw_data)
+      fetchedDataSize = imageBuffer.length
     } else {
       console.log('non ipfs content')
 
@@ -221,6 +237,11 @@ export class CdnMiddlewareController {
       const response = await axios.get(decodedUrl, {
         responseType: 'arraybuffer',
       })
+      // console.log('response is ', response)
+      fetchedDataSize = response.data.length
+
+      console.log(`Data Buffer Size: ${fetchedDataSize} bytes`)
+
       raw_data = response.data
 
       // Convert the array buffer to a Buffer
@@ -231,7 +252,7 @@ export class CdnMiddlewareController {
 
     const image = await Jimp.read(Buffer.from(imageBuffer))
 
-    console.log('converted to image')
+    console.log('converted to image ')
 
     // Resizing image
     // const resize = await image.scaleToFit(Number(width), Number(height))
@@ -261,7 +282,22 @@ export class CdnMiddlewareController {
         fs.writeFile(inputPath, imageData).then(async (res) => {
           console.log('file write res ', res)
 
-          await uploadFile(inputPath, tempFileName)
+          uploadDataSize = await uploadFile(inputPath, tempFileName)
+          let endTime = new Date().getTime() / 1000
+
+          let _req = {
+            url: decodedUrl,
+            ip,
+            fetchedDataSize,
+            uploadDataSize,
+            headers,
+            cacheControl,
+            timeTaken: parseInt('' + (endTime - startTime)),
+            status: 200,
+          }
+
+          // console.log('_req object is ', _req)
+          await statsLoggerMiddleware(_req)
 
           console.log('uploaded !')
         })
@@ -271,10 +307,13 @@ export class CdnMiddlewareController {
     }
 
     // console.log('res is ', res)
+
     res.set({
       'Content-Type': 'image/' + custom_format,
       'Content-Disposition': '',
     })
+
+    // await statsLoggerMiddleware()
 
     return new StreamableFile(imageData)
   }
@@ -289,8 +328,18 @@ export class CdnMiddlewareController {
     @Param('base64EncodedUrl') base64EncodedUrl: string,
     @Res({ passthrough: true }) res,
     @Query() queryParams,
+    @Req() req: any,
   ) {
     try {
+      console.log('request is ', req)
+
+      let ip = req.headers.host
+      console.log('ip is ', ip)
+
+      let headers = await JSON.stringify(req.headers)
+      let startTime = new Date().getTime() / 1000
+      let fetchedDataSize = 0
+      let uploadDataSize = 0
       if (!queryParams?.format) {
         // if custom resolution is not provided
         return `Please send resolution as query params i.e 
@@ -304,7 +353,12 @@ export class CdnMiddlewareController {
         return 'Un-supported Format , supported formats are ' + supportedVideoFormats.toString()
       }
 
-      const decodedUrl: string = Buffer.from(base64EncodedUrl, 'base64').toString('utf-8')
+      let decodedUrl: string = Buffer.from(base64EncodedUrl, 'base64').toString('utf-8')
+
+      // if (decodedUrl.startsWith('ipfs://')) {
+      //   decodedUrl = decodedUrl.slice(7)
+      // }
+
       console.log('Decoded:', decodedUrl)
 
       let result: any = isIPFSUrl(decodedUrl)
@@ -312,10 +366,15 @@ export class CdnMiddlewareController {
       let videoBuffer
 
       if (result.isIPFS) {
+        console.log('getting data from IPFS')
+
         raw_data = await toBuffer(coreContainer.self.ipfs.cat(result.cid))
         videoBuffer = Buffer.from(raw_data)
+        fetchedDataSize = videoBuffer.length
       } else {
         raw_data = await axios.get(decodedUrl, { responseType: 'arraybuffer' })
+        fetchedDataSize = raw_data.data.length
+
         raw_data = raw_data.data
 
         // Convert the array buffer to a Buffer
@@ -333,7 +392,7 @@ export class CdnMiddlewareController {
         console.log('cache control disabled !')
       } else {
         // cache on S3 - Minio Bucket
-        console.log('uploading')
+        console.log('uploading on s3 bucket ')
 
         const inputPath = await new Promise<string>((resolve) => {
           temp.mkdir('temp', (err, dirPath) => {
@@ -349,10 +408,32 @@ export class CdnMiddlewareController {
             resolve(path.join(dirPath, tempFileName))
           })
         })
+        let is_hls_file = await isHLSFile(decodedUrl)
+        console.log({ is_hls_file })
 
-        const video_path = isHLSFile(decodedUrl) ? decodedUrl : inputPath
+        const video_path = is_hls_file ? decodedUrl : inputPath
+        console.log('path is ', video_path)
+
         await transcodeVideo(video_path, outputPath, custom_format)
-        await uploadFile(outputPath, tempFileName)
+        console.log('starting upload now')
+
+        uploadDataSize = await uploadFile(outputPath, tempFileName)
+        //  uploadDataSize = await uploadFile(inputPath, tempFileName)
+        let endTime = new Date().getTime() / 1000
+
+        let _req = {
+          url: decodedUrl,
+          ip,
+          fetchedDataSize,
+          uploadDataSize,
+          headers,
+          cacheControl,
+          timeTaken: parseInt('' + (endTime - startTime)),
+          status: 200,
+        }
+
+        // console.log('_req object is ', _req)
+        await statsLoggerMiddleware(_req)
         console.log('uploaded !')
       }
 
@@ -377,12 +458,12 @@ async function transcodeVideo(inputPath, outputPath, custom_format) {
         console.log('Spawned Ffmpeg with command: ' + commandLine)
       })
       .on('end', async () => {
-        await resolve()
         console.log('Processed!')
+        await resolve()
       })
       .on('error', async (err, stdout, stderr) => {
-        await reject(err)
         console.log('Cannot process video: ' + err.message)
+        await reject(err)
       })
       .outputFormat(custom_format)
       .output(outputPath)
@@ -414,7 +495,7 @@ const readFileAsync: any = util.promisify(fs.readFile)
 
 async function uploadFile(filepath: string, filename, customResolution = null) {
   try {
-    await makeBucket()
+    // await makeBucket()
     console.log('Bucket created')
   } catch (error) {
     console.log('Bucket Already exists ', error)
@@ -434,6 +515,8 @@ async function uploadFile(filepath: string, filename, customResolution = null) {
 
     // If it's an image, resize it before uploading
     if (mimeType.startsWith('image')) {
+      console.log('image detected ')
+
       let resizedBuffer = fileBuffer
 
       // if (customResolution) {
@@ -458,7 +541,8 @@ async function uploadFile(filepath: string, filename, customResolution = null) {
         return console.log(err)
       }
 
-      console.log('File uploaded successfully.')
+      console.log('File uploaded successfully. ', resizedBuffer.length)
+      return resizedBuffer.length
     } else {
       console.log('video detected')
 
@@ -479,6 +563,7 @@ async function uploadFile(filepath: string, filename, customResolution = null) {
       }
 
       console.log('File uploaded successfully.')
+      return fileBuffer.length
     }
   } catch (error) {
     console.log('Error in uploading ', error)

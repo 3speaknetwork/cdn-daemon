@@ -2,7 +2,14 @@ import axios from 'axios'
 
 export async function isHLSFile(url: string): Promise<boolean> {
   try {
-    const response = await axios.get(url)
+    let actualUrl = url
+
+    // Check if the URL starts with 'ipfs://'
+    if (url.startsWith('ipfs://')) {
+      return false
+    }
+
+    const response = await axios.get(actualUrl)
 
     // Check if the response body starts with the HLS signature
     const responseBody: string = response.data

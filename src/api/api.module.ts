@@ -8,6 +8,8 @@ import { CoreService } from '../services/core.service'
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify'
 
 export const coreContainer: { self: CoreService } = {} as any
+// const schedule = require('node-schedule')
+import schedule from 'node-schedule'
 
 @Module({
   imports: [],

@@ -28,6 +28,7 @@ async function runTests() {
   /** Test 1 */
   url_480p =
     'https://ipfs-3speak.b-cdn.net/ipfs/QmWVqFM6i16zzBjDW6EZbPEoLLjHeTUiimyY9bXjHVCpzE/480p/index.m3u8'
+
   url_720p =
     'https://ipfs-3speak.b-cdn.net/ipfs/QmWVqFM6i16zzBjDW6EZbPEoLLjHeTUiimyY9bXjHVCpzE/720p/index.m3u8'
   url_1080p =
