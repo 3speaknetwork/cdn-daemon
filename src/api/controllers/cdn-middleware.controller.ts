@@ -39,7 +39,7 @@ import sharp from 'sharp'
 import temp from 'temp'
 import path from 'path'
 import { isIPFSUrl } from './is_ipfs'
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 import { isHLSFile } from './is_hls'
 import { statsLoggerMiddleware } from '../Middlewares/statsLoggerMiddleware'
 
@@ -181,7 +181,7 @@ export class CdnMiddlewareController {
     @Query() queryParams,
     @Req() req: any,
   ) {
-    console.log('request is ', req)
+    // console.log('request is ', req)
 
     let ip = req.headers.host
     console.log('ip is ', ip)
@@ -228,19 +228,39 @@ export class CdnMiddlewareController {
         fetchedDataSize = imageBuffer.length
       } else {
         console.log('non ipfs content')
+        try {
+          raw_data = await axios.get(decodedUrl)
+          fetchedDataSize = raw_data.data.length
+          raw_data = raw_data.data
+        } catch (error) {
+          const err = error as AxiosError
+          if (err.response) {
+            console.log('erro status code is', err.response.status)
+            let endTime = new Date().getTime() / 1000
 
-        raw_data = await axios.get(decodedUrl)
-        raw_data = raw_data.data
+            let _req = {
+              url: decodedUrl,
+              ip,
+              fetchedDataSize,
+              uploadDataSize,
+              headers,
+              cacheControl,
+              timeTaken: parseInt('' + (endTime - startTime)),
+              status: err.response.status,
+            }
 
-        const response = await axios.get(decodedUrl, {
-          responseType: 'arraybuffer',
-        })
+            // console.log('_req object is ', _req)
+            await statsLoggerMiddleware(_req)
+
+            // console.log(err.response.data)
+          }
+          // this.handleAxiosError(error)
+          return 'There is an error while accessing your content. Please try again'
+        }
+
         // console.log('response is ', response)
-        fetchedDataSize = response.data.length
 
         console.log(`Data Buffer Size: ${fetchedDataSize} bytes`)
-
-        raw_data = response.data
 
         // Convert the array buffer to a Buffer
         imageBuffer = Buffer.from(raw_data, 'binary')
@@ -380,12 +400,64 @@ export class CdnMiddlewareController {
       if (result.isIPFS) {
         console.log('getting data from IPFS')
 
-        raw_data = await toBuffer(coreContainer.self.ipfs.cat(result.cid))
-        videoBuffer = Buffer.from(raw_data)
-        fetchedDataSize = videoBuffer.length
+        try {
+          raw_data = await toBuffer(coreContainer.self.ipfs.cat(result.cid))
+          videoBuffer = Buffer.from(raw_data)
+          fetchedDataSize = videoBuffer.length
+        } catch (error) {
+          const err = error as AxiosError
+          if (err.response) {
+            console.log('erro status code is', err.response.status)
+            let endTime = new Date().getTime() / 1000
+
+            let _req = {
+              url: decodedUrl,
+              ip,
+              fetchedDataSize,
+              uploadDataSize,
+              headers,
+              cacheControl,
+              timeTaken: parseInt('' + (endTime - startTime)),
+              status: err.response.status,
+            }
+
+            // console.log('_req object is ', _req)
+            await statsLoggerMiddleware(_req)
+
+            // console.log(err.response.data)
+          }
+          // this.handleAxiosError(error)
+          return 'There is an error while accessing your content. Please try again'
+        }
       } else {
-        raw_data = await axios.get(decodedUrl, { responseType: 'arraybuffer' })
-        fetchedDataSize = raw_data.data.length
+        try {
+          raw_data = await axios.get(decodedUrl, { responseType: 'arraybuffer' })
+          fetchedDataSize = raw_data.data.length
+        } catch (error) {
+          const err = error as AxiosError
+          if (err.response) {
+            console.log('erro status code is', err.response.status)
+            let endTime = new Date().getTime() / 1000
+
+            let _req = {
+              url: decodedUrl,
+              ip,
+              fetchedDataSize,
+              uploadDataSize,
+              headers,
+              cacheControl,
+              timeTaken: parseInt('' + (endTime - startTime)),
+              status: err.response.status,
+            }
+
+            // console.log('_req object is ', _req)
+            await statsLoggerMiddleware(_req)
+
+            // console.log(err.response.data)
+          }
+          // this.handleAxiosError(error)
+          return 'There is an error while accessing your content. Please try again'
+        }
 
         raw_data = raw_data.data
 

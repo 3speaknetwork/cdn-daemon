@@ -22,7 +22,7 @@
 //   'https://ipfs-3speak.b-cdn.net/ipfs/Qmf1XukAoMdatAW9HPDZL6Gphrgzvew5Km3rzvHf194DmM/480p/480p_0.ts'
 
 const url =
-  'https://ipfs-3speak.b-cdn.net/ipfs/QmWVqFM6i16zzBjDW6EZbPEoLLjHeTUiimyY9bXjHVCpzE/480p/index.m3u8'
+  'https://ipfs-3speak.b-cdn.net/ipfs/QWVqFM6i16zzBjDW6EZbPEoLLjHeTUiimyY9bXjHVCpzE/480p/index.m3u8'
 
 // non ipfs
 
