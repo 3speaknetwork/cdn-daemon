@@ -190,6 +190,8 @@ export class CdnMiddlewareController {
     let startTime = new Date().getTime() / 1000
     let fetchedDataSize = 0
     let uploadDataSize = 0
+    const decodedUrl: string = Buffer.from(base64EncodedUrl, 'base64').toString('utf-8')
+    console.log('Decoded:', decodedUrl)
 
     if (!queryParams?.format) {
       // if custom resolution is not provided
@@ -199,9 +201,6 @@ export class CdnMiddlewareController {
     if (!supportedImageFormats.includes(queryParams.format)) {
       return 'Un-supported Format , supported formats are ' + supportedImageFormats.toString()
     }
-
-    const decodedUrl: string = Buffer.from(base64EncodedUrl, 'base64').toString('utf-8')
-    console.log('Decoded:', decodedUrl)
 
     // Fetching custom resolution
     // const width = queryParams.width
@@ -215,107 +214,126 @@ export class CdnMiddlewareController {
     // base64url
 
     // console.log('Custom resolution : ' + width + 'x' + height)
-    console.log('custom format is ', custom_format)
+    try {
+      // Fetching image contents from IPFS
+      let result: any = isIPFSUrl(decodedUrl)
+      let raw_data: any
+      let imageBuffer
+      if (result.isIPFS) {
+        console.log('ipfs content')
 
-    // Fetching image contents from IPFS
-    let result: any = isIPFSUrl(decodedUrl)
-    let raw_data: any
-    let imageBuffer
-    if (result.isIPFS) {
-      console.log('ipfs content')
+        raw_data = coreContainer.self.ipfs.cat(result.cid)
 
-      raw_data = coreContainer.self.ipfs.cat(result.cid)
+        imageBuffer = await toBuffer(raw_data)
+        fetchedDataSize = imageBuffer.length
+      } else {
+        console.log('non ipfs content')
 
-      imageBuffer = await toBuffer(raw_data)
-      fetchedDataSize = imageBuffer.length
-    } else {
-      console.log('non ipfs content')
+        raw_data = await axios.get(decodedUrl)
+        raw_data = raw_data.data
 
-      raw_data = await axios.get(decodedUrl)
-      raw_data = raw_data.data
-
-      const response = await axios.get(decodedUrl, {
-        responseType: 'arraybuffer',
-      })
-      // console.log('response is ', response)
-      fetchedDataSize = response.data.length
-
-      console.log(`Data Buffer Size: ${fetchedDataSize} bytes`)
-
-      raw_data = response.data
-
-      // Convert the array buffer to a Buffer
-      imageBuffer = Buffer.from(raw_data, 'binary')
-    }
-
-    // Converting ipfs raw data to an imae representation
-
-    const image = await Jimp.read(Buffer.from(imageBuffer))
-
-    console.log('converted to image ')
-
-    // Resizing image
-    // const resize = await image.scaleToFit(Number(width), Number(height))
-
-    // change it to different containers
-
-    const imageData = await image.getBufferAsync(
-      custom_format ? 'image/' + custom_format : 'image/png',
-    )
-
-    let tempFileName = base64EncodedUrl + '.' + custom_format
-    console.log('filename is ', tempFileName)
-
-    // Cache Check
-    let shouldNotCache = !result.isIPFS && cacheControl == 'no-cache'
-    console.log('should not cache ', shouldNotCache)
-
-    if (shouldNotCache) {
-      console.log('cache control disabled !')
-    } else {
-      // cache on S3 - Minio Bucket]
-      console.log('caching now')
-
-      temp.mkdir('temp', async function (err, dirPath) {
-        var inputPath = path.join(dirPath, tempFileName)
-
-        fs.writeFile(inputPath, imageData).then(async (res) => {
-          console.log('file write res ', res)
-
-          uploadDataSize = await uploadFile(inputPath, tempFileName)
-          let endTime = new Date().getTime() / 1000
-
-          let _req = {
-            url: decodedUrl,
-            ip,
-            fetchedDataSize,
-            uploadDataSize,
-            headers,
-            cacheControl,
-            timeTaken: parseInt('' + (endTime - startTime)),
-            status: 200,
-          }
-
-          // console.log('_req object is ', _req)
-          await statsLoggerMiddleware(_req)
-
-          console.log('uploaded !')
+        const response = await axios.get(decodedUrl, {
+          responseType: 'arraybuffer',
         })
-        // res.set()
-        // await fs.rm(tempFileName)
+        // console.log('response is ', response)
+        fetchedDataSize = response.data.length
+
+        console.log(`Data Buffer Size: ${fetchedDataSize} bytes`)
+
+        raw_data = response.data
+
+        // Convert the array buffer to a Buffer
+        imageBuffer = Buffer.from(raw_data, 'binary')
+      }
+
+      // Converting ipfs raw data to an imae representation
+
+      const image = await Jimp.read(Buffer.from(imageBuffer))
+
+      console.log('converted to image ')
+
+      // Resizing image
+      // const resize = await image.scaleToFit(Number(width), Number(height))
+
+      // change it to different containers
+
+      const imageData = await image.getBufferAsync(
+        custom_format ? 'image/' + custom_format : 'image/png',
+      )
+
+      let tempFileName = base64EncodedUrl + '.' + custom_format
+      console.log('filename is ', tempFileName)
+
+      // Cache Check
+      let shouldNotCache = !result.isIPFS && cacheControl == 'no-cache'
+      console.log('should not cache ', shouldNotCache)
+
+      if (shouldNotCache) {
+        console.log('cache control disabled !')
+      } else {
+        // cache on S3 - Minio Bucket]
+        console.log('caching now')
+
+        temp.mkdir('temp', async function (err, dirPath) {
+          var inputPath = path.join(dirPath, tempFileName)
+
+          fs.writeFile(inputPath, imageData).then(async (res) => {
+            console.log('file write res ', res)
+
+            uploadDataSize = await uploadFile(inputPath, tempFileName)
+            let endTime = new Date().getTime() / 1000
+
+            let _req = {
+              url: decodedUrl,
+              ip,
+              fetchedDataSize,
+              uploadDataSize,
+              headers,
+              cacheControl,
+              timeTaken: parseInt('' + (endTime - startTime)),
+              status: 200,
+            }
+
+            // console.log('_req object is ', _req)
+            await statsLoggerMiddleware(_req)
+
+            console.log('uploaded !')
+          })
+          // res.set()
+          // await fs.rm(tempFileName)
+        })
+      }
+
+      // console.log('res is ', res)
+
+      res.set({
+        'Content-Type': 'image/' + custom_format,
+        'Content-Disposition': '',
       })
+
+      // await statsLoggerMiddleware()
+
+      return new StreamableFile(imageData)
+    } catch (error) {
+      let endTime = new Date().getTime() / 1000
+
+      let _req = {
+        url: decodedUrl,
+        ip,
+        fetchedDataSize,
+        uploadDataSize,
+        headers,
+        cacheControl,
+        timeTaken: parseInt('' + (endTime - startTime)),
+        status: 400,
+      }
+
+      // console.log('_req object is ', _req)
+      await statsLoggerMiddleware(_req)
+      console.error('Error during Image resizing:', error.message)
+      // Handle the error appropriately (send error response, log, etc.)
+      return 'Error during Image resizing'
     }
-
-    // console.log('res is ', res)
-
-    res.set({
-      'Content-Type': 'image/' + custom_format,
-      'Content-Disposition': '',
-    })
-
-    // await statsLoggerMiddleware()
-
-    return new StreamableFile(imageData)
   }
 
   // container format change
@@ -330,37 +348,31 @@ export class CdnMiddlewareController {
     @Query() queryParams,
     @Req() req: any,
   ) {
-    try {
-      console.log('request is ', req)
+    console.log('request is ', req)
 
-      let ip = req.headers.host
-      console.log('ip is ', ip)
+    let ip = req.headers.host
+    console.log('ip is ', ip)
 
-      let headers = await JSON.stringify(req.headers)
-      let startTime = new Date().getTime() / 1000
-      let fetchedDataSize = 0
-      let uploadDataSize = 0
-      if (!queryParams?.format) {
-        // if custom resolution is not provided
-        return `Please send resolution as query params i.e 
+    let headers = await JSON.stringify(req.headers)
+    let startTime = new Date().getTime() / 1000
+    let fetchedDataSize = 0
+    let uploadDataSize = 0
+    const custom_format = queryParams.format
+    const cacheControl = queryParams.cacheControl
+    let decodedUrl: string = Buffer.from(base64EncodedUrl, 'base64').toString('utf-8')
+    console.log('Decoded:', decodedUrl)
+
+    if (!queryParams?.format) {
+      // if custom resolution is not provided
+      return `Please send resolution as query params i.e 
         ${ipfs_base_Uri}/video/resizer/QmWiAWBd3QKwHBYnMdJJsEfNcAfrVYyscBXfQKYJU3VdYW?format=mp4&cacheControl=no-cache`
-      }
+    }
 
-      const custom_format = queryParams.format
-      const cacheControl = queryParams.cacheControl
+    if (!supportedVideoFormats.includes(queryParams.format)) {
+      return 'Un-supported Format , supported formats are ' + supportedVideoFormats.toString()
+    }
 
-      if (!supportedVideoFormats.includes(queryParams.format)) {
-        return 'Un-supported Format , supported formats are ' + supportedVideoFormats.toString()
-      }
-
-      let decodedUrl: string = Buffer.from(base64EncodedUrl, 'base64').toString('utf-8')
-
-      // if (decodedUrl.startsWith('ipfs://')) {
-      //   decodedUrl = decodedUrl.slice(7)
-      // }
-
-      console.log('Decoded:', decodedUrl)
-
+    try {
       let result: any = isIPFSUrl(decodedUrl)
       let raw_data: any
       let videoBuffer
@@ -444,6 +456,20 @@ export class CdnMiddlewareController {
 
       return new StreamableFile(videoBuffer)
     } catch (error) {
+      let endTime = new Date().getTime() / 1000
+
+      let _req = {
+        url: decodedUrl,
+        ip,
+        fetchedDataSize,
+        uploadDataSize,
+        headers,
+        cacheControl,
+        timeTaken: parseInt('' + (endTime - startTime)),
+        status: 400,
+      }
+      await statsLoggerMiddleware(_req)
+
       console.error('Error during video resizing:', error.message)
       // Handle the error appropriately (send error response, log, etc.)
       return 'Error during video resizing'

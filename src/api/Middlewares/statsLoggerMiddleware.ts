@@ -6,16 +6,16 @@ const mongo = new MongoClient(url)
 
 export async function statsLoggerMiddleware(object: any) {
   try {
-    console.log('object to log is ', object)
+    console.log('Inserting Query Statistics : ', object)
     await mongo.connect()
     const db = mongo.db('spk-cdn-daemon')
 
-    console.log('Collection created with schema validation!')
+    // console.log('Collection created with schema validation!')
     let collection = db.collection('requestStats')
     collection
       .insertOne({ ...object, insertedAt: parseInt('' + new Date().getTime() / 1000) })
       .then(() => {
-        console.log('Data inserted successfully!')
+        console.log('Request Stats inserted successfully!')
         // mongo.close() // Close connection after successful insertion
       })
       .catch((error) => {
@@ -24,7 +24,7 @@ export async function statsLoggerMiddleware(object: any) {
       })
     // mongo.close()
   } catch (error) {
-    console.log('error in logging ', error)
+    console.log('error in Saving Request Stats ', error)
   }
 }
 export async function deleteStats(id: ObjectId): Promise<void> {
