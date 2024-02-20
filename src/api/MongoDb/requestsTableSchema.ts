@@ -27,5 +27,8 @@ export const validatorSchema = {
     status: {
       bsonType: 'number',
     },
+    insertedAt: {
+      bsonType: 'number',
+    },
   },
 }
