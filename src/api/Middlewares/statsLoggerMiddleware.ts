@@ -1,5 +1,6 @@
 import { MongoClient, ObjectId } from 'mongodb'
 import { validatorSchema } from '../MongoDb/requestsTableSchema'
+import orchestralNodeSchema from '../MongoDb/orchesternodeTableSchema'
 const MONGO_HOST = 'localhost:27017'
 const url = `mongodb://127.0.0.1:27017`
 const mongo = new MongoClient(url)
@@ -27,6 +28,7 @@ export async function statsLoggerMiddleware(object: any) {
     console.log('error in Saving Request Stats ', error)
   }
 }
+
 export async function deleteStats(id: ObjectId): Promise<void> {
   try {
     await mongo.connect()

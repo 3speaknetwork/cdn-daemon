@@ -368,7 +368,7 @@ export class CdnMiddlewareController {
     @Query() queryParams,
     @Req() req: any,
   ) {
-    console.log('request is ', req)
+    // console.log('request is ', req)
 
     let ip = req.headers.host
     console.log('ip is ', ip)

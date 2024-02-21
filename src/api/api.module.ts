@@ -11,11 +11,13 @@ export const coreContainer: { self: CoreService } = {} as any
 // const schedule = require('node-schedule')
 import schedule from 'node-schedule'
 import { deleteStats, fetchRecordsOlderThan } from './Middlewares/statsLoggerMiddleware'
+import { HubController } from './controllers/hub.controller'
+import { HubService } from '../services/hub.service'
 
 @Module({
   imports: [],
-  controllers: [CdnMiddlewareController, AdminController],
-  providers: [],
+  controllers: [CdnMiddlewareController, AdminController, HubController],
+  providers: [HubService],
 })
 class ControllerModule {}
 
