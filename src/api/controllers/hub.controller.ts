@@ -24,20 +24,19 @@ export class HubController {
       if (!(endpoint && address && did && stats)) {
         return 'Fields are missing . Make sure you include "endpoint , address , did , stats in your request body" '
       }
-      // let ip = req.headers.host
-      let ip
 
-      // if (ip != '::1') {
-      try {
-        const response = await axios.get(`https://ipinfo.io/json`)
-        console.log('response from ipinfo is  ', response.data)
-        ip = response.data['ip']
-        console.log('ip is ', ip)
-      } catch (e) {
-        console.log('error is ', e)
-        return 'error in fetching IP address information !'
-      }
+      console.log('headers are ', req.headers)
+
+      let ip = extractIPv4Address(req.headers.host)
+
       // }
+      try {
+        let response = await axios.get(`https://ipinfo.io/json`)
+        console.log(response.data)
+        ip = response.data.hostname
+      } catch (e) {
+        return 'Error in fetching ip information'
+      }
 
       console.log('Registering Orchester Instance')
 
@@ -55,5 +54,19 @@ export class HubController {
       console.error('Error registering node:', error)
       return { success: false, error: 'Failed to register node.' }
     }
+  }
+}
+function extractIPv4Address(str: string): string | null {
+  // Regular expression matching an IPv4 address format
+  const ipRegex = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
+
+  // Split the string based on ":" to separate address and port
+  const parts = str.split(':')
+
+  // Check if there's an address part and if it matches the IPv4 format
+  if (parts.length > 0 && ipRegex.test(parts[0])) {
+    return parts[0]
+  } else {
+    return null
   }
 }
