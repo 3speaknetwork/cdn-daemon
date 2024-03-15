@@ -1,34 +1,27 @@
-import { MongoClient } from 'mongodb'
-const MONGO_HOST = 'localhost:27017'
-const url = `mongodb://127.0.0.1:27017`
-const mongo = new MongoClient(url)
-import Ajv, { ValidateFunction } from 'ajv'
+import { FindOneAndUpdateOptions, MongoClient } from 'mongodb'
+import { ConfigService } from '@/config.service'
+import { WithInsertTime } from '@/common/types'
+import { NodeStats } from '../controllers/hub.interface'
 
-const ajv = new Ajv()
+export type OrchesterNode = {
+  endpoint: string
+  ipAddress: string
+  stats: NodeStats
+  did: string
+}
 
-export async function insertOrchestralNode(nodeData: any) {
+export async function insertOrchestralNode(nodeData: OrchesterNode) {
+  const mongo = new MongoClient(ConfigService.getConfig().mongoHost)
   try {
     console.log('Inserting Orchestral Node: ', nodeData)
     await mongo.connect()
     const db = mongo.db('spk-cdn-daemon')
-    let collection = db.collection('orchesterNode')
-
-    // Additional validation for address as a domain name
-    if (!isValidDomainName(nodeData.address)) {
-      console.error('Invalid domain name:', nodeData.address)
-      throw new Error('Address should be a valid domain name.')
-    }
-
-    // Additional validation for a valid DID
-    if (!isValidDid(nodeData.did)) {
-      console.error('Invalid DID:', nodeData.did)
-      throw new Error('DID should be a valid decentralized identifier.')
-    }
+    const collection = db.collection<WithInsertTime<OrchesterNode>>('orchesterNode')
 
     // Use findOneAndUpdate with upsert to ensure uniqueness based on 'did'
     const filter = { did: nodeData.did }
     const update = { $set: { ...nodeData, insertedAt: new Date() } }
-    const options: any = { upsert: true }
+    const options: FindOneAndUpdateOptions = { upsert: true }
 
     await collection.findOneAndUpdate(filter, update, options)
 

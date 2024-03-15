@@ -1,52 +1,27 @@
-import { Controller, Post, Body, Req, Ip } from '@nestjs/common'
+import { Controller, Post, Body, Req, Ip, Request } from '@nestjs/common'
 import { HubService } from '../../services/hub.service'
-import axios from 'axios'
+import { WithAuthData } from '../Middlewares/auth.interface'
+import { RegisterRequestBody, registerRequestBodySchema } from './hub.interface'
 
 @Controller('hub')
 export class HubController {
-  constructor(private readonly hubService: HubService) {}
+  constructor(private readonly hubService: HubService) { }
 
   @Post('register')
   async registerNode(
-    @Body('endpoint') endpoint: string,
-    @Body('address') address: string,
-    @Body('did') did: string,
-    @Body('stats')
-    stats: {
-      throughput: number
-      upspeed: number
-      downspeed: number
-    },
-    @Req() req: any,
-    // @Ip() ip: any,
+    @Body() uncheckedBody: WithAuthData,
   ): Promise<any> {
     try {
-      if (!(endpoint && address && did && stats)) {
-        return 'Fields are missing . Make sure you include "endpoint , address , did , stats in your request body" '
-      }
-
-      console.log('headers are ', req.headers)
-
-      let ip = extractIPv4Address(req.headers.host)
-
-      // }
-      try {
-        let response = await axios.get(`https://ipinfo.io/json`)
-        console.log(response.data)
-        ip = response.data.hostname
-      } catch (e) {
-        return 'Error in fetching ip information'
-      }
+      const { endpoint, ipAddress, did, stats } = registerRequestBodySchema.parse(uncheckedBody) as RegisterRequestBody
 
       console.log('Registering Orchester Instance')
 
       // Assuming you have a HubService with a method registerNode
       const result = await this.hubService.registerNode({
         endpoint,
-        address,
         did,
         stats,
-        ipAddress: ip,
+        ipAddress,
       })
 
       return { success: true, result }
