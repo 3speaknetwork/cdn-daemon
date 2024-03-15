@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core'
-import { Module } from '@nestjs/common'
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 
 import { CdnMiddlewareController } from './controllers/cdn-middleware.controller'
@@ -13,13 +13,20 @@ import schedule from 'node-schedule'
 import { deleteStats, fetchRecordsOlderThan } from './Middlewares/statsLoggerMiddleware'
 import { HubController } from './controllers/hub.controller'
 import { HubService } from '../services/hub.service'
+import { AuthMiddleware } from './Middlewares/auth.middleware'
 
 @Module({
   imports: [],
   controllers: [CdnMiddlewareController, AdminController, HubController],
   providers: [HubService],
 })
-class ControllerModule {}
+class ControllerModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(AuthMiddleware)
+      .forRoutes('/hub/register');
+  }
+}
 
 export class ApiModule {
   instance: CoreService
